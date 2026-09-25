@@ -1,0 +1,16 @@
+# Entornos virtuales de Python
+venv/
+env/
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Variables de entorno locales
+.env
+
+# Archivos de datos en tiempo de ejecución (Landing Zone y logs locales)
+data/*.xlsx
+data/*.csv
+
+# Archivos de estado del sistema de monitoreo
+state.json
