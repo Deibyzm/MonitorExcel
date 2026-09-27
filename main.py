@@ -1,51 +1,43 @@
-import shutil
-from config.settings import (
-    TARGET_URL,
-    CURRENT_EXCEL_PATH,
-    PREVIOUS_EXCEL_PATH,
-    AUDIT_LOG_PATH,
-    STATE_FILE_PATH,
-)
+from pathlib import Path
 from modules.fetcher import fetch_remote_excel
-from modules.checker import is_file_updated
 from modules.comparator import compare_excel_versions
+# from modules.notifier import send_telegram_alert  # Lo activaremos en un momento
+
+# Configuración de rutas y URL institucional
+TARGET_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRvkrtU59YqKYq1zoCIC7x0sItEeq6lUkhmWJpe5BJUg7CRusC2O5WobgBeUS3wT5vWNldJrFkAdy5M/pubhtml?urp=gmail_link"
+DATA_DIR = Path("data")
+CURRENT_FILE = DATA_DIR / "current.xlsx"
+OLD_FILE = DATA_DIR / "old.xlsx"
 
 
-def main() -> None:
-    """Orquestador principal del sistema de monitoreo y auditoría de Excel."""
+def main():
     print("=== [ETL] Iniciando ciclo de verificación de la hoja de cálculo ===")
 
-    # Paso 1: Descargar la versión más reciente a un archivo temporal (current.xlsx)
-    success = fetch_remote_excel(TARGET_URL, CURRENT_EXCEL_PATH)
+    # Paso 1: Descargar la versión más reciente
+    success = fetch_remote_excel(TARGET_URL, CURRENT_FILE)
     if not success:
         print("[ERROR] El proceso se interrumpió porque falló la descarga web.")
         return
 
-    # Paso 2: Verificar si el archivo realmente cambió mediante Hash MD5 y state.json
-    if not is_file_updated(CURRENT_EXCEL_PATH, STATE_FILE_PATH):
-        print("[INFO] Sin novedades: El Excel no ha sufrido modificaciones desde la última revisión.")
-        return
+    # Paso 2: Comparar con la versión anterior
+    diff_result = compare_excel_versions(OLD_FILE, CURRENT_FILE)
 
-    print("[AVISO] ¡Se detectaron cambios en el documento de Google Sheets!")
-
-    # Paso 3: Si existe una versión previa, compararla con la actual usando Pandas
-    if PREVIOUS_EXCEL_PATH.exists():
-        differences = compare_excel_versions(PREVIOUS_EXCEL_PATH, CURRENT_EXCEL_PATH)
-
-        if not differences.empty:
-            print(f"\n--- CAMBIOS ENCONTRADOS ({len(differences)} filas afectadas) ---")
-            print(differences)
-
-            # Opcional: Guardar el reporte detallado en un archivo CSV de auditoría
-            differences.to_csv(AUDIT_LOG_PATH, mode="a", header=not AUDIT_LOG_PATH.exists(), index=True)
-            print(f"\n[LOG] Cambios registrados exitosamente en: {AUDIT_LOG_PATH}")
-        else:
-            print("[INFO] El hash cambió, pero la estructura tabular arrojó un resultado vacío.")
+    # Paso 3: Evaluar si hubo cambios reales
+    if not diff_result.empty:
+        print("[AVISO] ¡Se detectaron cambios reales en las celdas del Excel!")
+        
+        # AQUÍ CONECTAREMOS TELEGRAM PRONTO:
+        # send_telegram_alert(token="TU_TOKEN", chat_id="TU_CHAT_ID", message="¡Hay cambios en el Excel!")
+        
     else:
-        print("[INFO] Primera ejecución: Se ha establecido la línea base del archivo (current.xlsx).")
+        print("[INFO] No hay modificaciones en los datos tabulares.")
 
-    # Paso 4: Actualizar la versión previa copiando la actual para el próximo ciclo
-    shutil.copy(CURRENT_EXCEL_PATH, PREVIOUS_EXCEL_PATH)
+    # Paso 4: Rotar archivos (actualizar el histórico)
+    if CURRENT_FILE.exists():
+        # Si ya teníamos un archivo viejo, lo reemplazamos o actualizamos
+        import shutil
+        shutil.copy(CURRENT_FILE, OLD_FILE)
+
     print("=== [ETL] Ciclo finalizado y estado actualizado correctamente ===")
 
 
