@@ -9,6 +9,8 @@ DATA_DIR = Path("data")
 CURRENT_FILE = DATA_DIR / "current.xlsx"
 OLD_FILE = DATA_DIR / "old.xlsx"
 
+KEYWORD_TO_WATCH = ["Desarrollo","Sistemas","Tecnología en Desarrollo Informático"]
+
 
 def main():
     print("=== [ETL] Iniciando ciclo de verificación de la hoja de cálculo ===")
@@ -20,7 +22,7 @@ def main():
         return
 
     # Paso 2: Comparar con la versión anterior
-    diff_result = compare_excel_versions(OLD_FILE, CURRENT_FILE)
+    diff_result = compare_excel_versions(OLD_FILE, CURRENT_FILE, keywords=KEYWORD_TO_WATCH)
 
     # Paso 3: Evaluar si hubo cambios reales
     if not diff_result.empty:
